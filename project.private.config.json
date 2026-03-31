@@ -1,6 +1,6 @@
 {
   "libVersion": "3.15.0",
-  "projectname": "%E8%B6%A3%E5%91%B3%E6%8C%96%E5%AE%9D%E5%AE%8C%E6%95%B4%E4%BB%A3%E7%A0%81",
+  "projectname": "wabao-game",
   "setting": {
     "urlCheck": true,
     "coverView": true,
@@ -9,7 +9,6 @@
     "autoAudits": false,
     "showShadowRootInWxmlPanel": true,
     "compileHotReLoad": true,
-    "skylineRenderEnable": false,
     "useApiHook": true,
     "useStaticServer": false,
     "useLanDebug": false,

@@ -37,6 +37,5 @@
   },
   "condition": {},
   "srcMiniprogramRoot": "wechat-miniprogram/",
-  "libVersion": "3.15.0",
-  "isGameTourist": false
+  "libVersion": "3.15.0"
 }
