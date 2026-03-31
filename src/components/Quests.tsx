@@ -1,7 +1,7 @@
 import React from 'react';
 import { GameState, Quest } from '../types';
 import { QUESTS } from '../quests';
-import { CheckCircle, Circle, Gift, Coins, Pickaxe, Star, Gem } from 'lucide-react';
+import { CheckCircle, Circle, Gift, Coins, Pickaxe, Star, Gem, Lock } from 'lucide-react';
 import { soundManager } from '../sound';
 import { getLevelFromXp } from '../gameLogic';
 import { motion } from 'motion/react';
@@ -12,6 +12,17 @@ interface QuestsProps {
 }
 
 export default function Quests({ state, setState }: QuestsProps) {
+  const isQuestUnlocked = (quest: Quest, index: number) => {
+    if (!quest.chainId) return true;
+    for (let i = index - 1; i >= 0; i--) {
+      const prev = QUESTS[i];
+      if (prev.chainId === quest.chainId) {
+        return !!state.completedQuests?.includes(prev.id);
+      }
+    }
+    return true;
+  };
+
   const getProgress = (quest: Quest) => {
     switch (quest.type) {
       case 'dig':
@@ -65,14 +76,15 @@ export default function Quests({ state, setState }: QuestsProps) {
         </div>
         <div>
           <h1 className="text-2xl font-black text-white drop-shadow-md tracking-tight">任务系统</h1>
-          <p className="text-sm text-white/80 font-bold">完成任务获取丰厚奖励</p>
+          <p className="text-sm text-white/80 font-bold">完成阶段任务，逐步解锁后续挑战</p>
         </div>
       </div>
 
       <div className="space-y-4">
-        {QUESTS.map(quest => {
+        {QUESTS.map((quest, index) => {
+          const isUnlocked = isQuestUnlocked(quest, index);
           const progress = getProgress(quest);
-          const isCompleted = progress >= quest.target;
+          const isCompleted = isUnlocked && progress >= quest.target;
           const isClaimed = state.completedQuests?.includes(quest.id);
 
           return (
@@ -102,46 +114,57 @@ export default function Quests({ state, setState }: QuestsProps) {
                     领取奖励
                   </button>
                 ) : (
-                  <div className="bg-slate-100 text-slate-400 p-2 rounded-xl">
-                    <Circle size={24} />
-                  </div>
+                  isUnlocked ? (
+                    <div className="bg-slate-100 text-slate-400 p-2 rounded-xl">
+                      <Circle size={24} />
+                    </div>
+                  ) : (
+                    <div className="bg-slate-100 text-slate-400 p-2 rounded-xl">
+                      <Lock size={24} />
+                    </div>
+                  )
                 )}
               </div>
 
               {!isClaimed && (
                 <>
-                  <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden mb-3 border border-slate-300 relative">
-                    <motion.div 
-                      className={`absolute top-0 left-0 h-full rounded-full ${isCompleted ? 'bg-emerald-400' : 'bg-amber-400'}`}
-                      initial={{ width: 0 }}
-                      animate={{ width: `${Math.min(100, (progress / quest.target) * 100)}%` }}
-                      transition={{ type: 'spring', stiffness: 50, damping: 15 }}
-                    />
-                    {/* Add a subtle shine effect when progressing */}
-                    {!isCompleted && progress > 0 && (
-                      <motion.div
-                        className="absolute top-0 left-0 h-full bg-white/30 rounded-full"
-                        initial={{ width: 0, opacity: 0 }}
-                        animate={{ 
-                          width: `${Math.min(100, (progress / quest.target) * 100)}%`,
-                          opacity: [0, 0.5, 0] 
-                        }}
-                        transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
-                      />
-                    )}
-                  </div>
-                  <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-400">进度: {Math.floor(progress)} / {quest.target}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-slate-400">奖励:</span>
-                      {quest.rewardCoins && <span className="flex items-center gap-1 text-amber-500"><Coins size={12} /> {quest.rewardCoins}</span>}
-                      {quest.rewardShovels && <span className="flex items-center gap-1 text-slate-500"><Pickaxe size={12} /> {quest.rewardShovels}</span>}
-                      {quest.rewardXp && <span className="flex items-center gap-1 text-sky-500"><Star size={12} /> {quest.rewardXp}</span>}
-                      {quest.rewardGems && Object.entries(quest.rewardGems).map(([gem, count]) => (
-                        <span key={gem} className="flex items-center gap-1 text-fuchsia-500"><Gem size={12} /> {gem} x{count}</span>
-                      ))}
-                    </div>
-                  </div>
+                  {isUnlocked ? (
+                    <>
+                      <div className="w-full bg-slate-200 h-3 rounded-full overflow-hidden mb-3 border border-slate-300 relative">
+                        <motion.div 
+                          className={`absolute top-0 left-0 h-full rounded-full ${isCompleted ? 'bg-emerald-400' : 'bg-amber-400'}`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(100, (progress / quest.target) * 100)}%` }}
+                          transition={{ type: 'spring', stiffness: 50, damping: 15 }}
+                        />
+                        {!isCompleted && progress > 0 && (
+                          <motion.div
+                            className="absolute top-0 left-0 h-full bg-white/30 rounded-full"
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ 
+                              width: `${Math.min(100, (progress / quest.target) * 100)}%`,
+                              opacity: [0, 0.5, 0] 
+                            }}
+                            transition={{ duration: 1, repeat: Infinity, repeatDelay: 2 }}
+                          />
+                        )}
+                      </div>
+                      <div className="flex justify-between items-center text-xs font-bold">
+                        <span className="text-slate-400">进度: {Math.floor(progress)} / {quest.target}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-400">奖励:</span>
+                          {quest.rewardCoins && <span className="flex items-center gap-1 text-amber-500"><Coins size={12} /> {quest.rewardCoins}</span>}
+                          {quest.rewardShovels && <span className="flex items-center gap-1 text-slate-500"><Pickaxe size={12} /> {quest.rewardShovels}</span>}
+                          {quest.rewardXp && <span className="flex items-center gap-1 text-sky-500"><Star size={12} /> {quest.rewardXp}</span>}
+                          {quest.rewardGems && Object.entries(quest.rewardGems).map(([gem, count]) => (
+                            <span key={gem} className="flex items-center gap-1 text-fuchsia-500"><Gem size={12} /> {gem} x{count}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xs font-bold text-slate-400">完成该系列的前置任务后解锁</div>
+                  )}
                 </>
               )}
             </div>

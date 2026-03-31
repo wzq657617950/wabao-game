@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Pickaxe, Store, Trophy, Package, Home as HomeIcon, Mountain, BookOpen, Coins, Volume2, VolumeX, Users, User, Gift, Sparkles, Shield } from 'lucide-react';
 import { soundManager } from './sound';
 import { GemType, MaterialType } from './types';
-import { MINER_TIERS } from './gameLogic';
+import { MINER_TIERS, getEffectiveMinerDigsPerMinute } from './gameLogic';
 
 const STORAGE_KEYS = {
   userId: 'treasure_user_id_v1',
@@ -335,7 +335,8 @@ export default function App() {
             const skillSpeedBoost = speedSkillLevel * 5;
             const totalSpeedBoost = houseSpeedBoost + skillSpeedBoost;
             
-            const digsPerSecond = (loadedState.minerCount * (tier.digsPerMinute || 1) * (1 + totalSpeedBoost / 100)) / 60;
+            const effectiveDigsPerMinute = getEffectiveMinerDigsPerMinute(loadedState.minerLevel, tier.digsPerMinute || 1);
+            const digsPerSecond = (loadedState.minerCount * effectiveDigsPerMinute * (1 + totalSpeedBoost / 100)) / 60;
             actualDigs = Math.floor((effectiveOfflineMs / 1000) * digsPerSecond);
             
             if (actualDigs > 0) {
@@ -459,7 +460,8 @@ export default function App() {
     const skillSpeedBoost = speedSkillLevel * 5;
     const totalSpeedBoost = houseSpeedBoost + skillSpeedBoost;
     
-    const digsPerSecond = (state.minerCount * (tier.digsPerMinute || 1) * (1 + totalSpeedBoost / 100)) / 60;
+    const effectiveDigsPerMinute = getEffectiveMinerDigsPerMinute(state.minerLevel, tier.digsPerMinute || 1);
+    const digsPerSecond = (state.minerCount * effectiveDigsPerMinute * (1 + totalSpeedBoost / 100)) / 60;
     
     let accumulatedDigs = 0;
 

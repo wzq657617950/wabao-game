@@ -1,6 +1,6 @@
 import React from 'react';
 import { GameState } from '../types';
-import { MINER_TIERS, MINER_SKILLS, HOUSES } from '../gameLogic';
+import { MINER_TIERS, MINER_SKILLS, HOUSES, getEffectiveMinerDigsPerMinute, getMinerUpgradeCostMultiplier } from '../gameLogic';
 import { Users, ArrowUpCircle, Coins, Pickaxe, Zap, Star, Gem, ChevronsUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { soundManager } from '../sound';
@@ -21,18 +21,21 @@ export default function Miners({ state, setState }: MinersProps) {
   
   const costReductionLevel = state.minerSkills?.['cost_reduction'] || 0;
   const costReductionMultiplier = 1 - (costReductionLevel * 2) / 100;
+  const hireCostMultiplier = state.houseLevel >= 11 ? 1.2 : state.houseLevel >= 9 ? 1.15 : state.houseLevel >= 7 ? 1.1 : state.houseLevel >= 5 ? 1.06 : 1;
+  const upgradeCostMultiplier = getMinerUpgradeCostMultiplier(state.minerLevel + 1, state.houseLevel);
 
-  const hireCost = Math.floor(1000 * (state.minerCount + 1) * costReductionMultiplier);
+  const hireCost = Math.floor(2200 * Math.pow(state.minerCount + 1, 1.3) * hireCostMultiplier * costReductionMultiplier);
   const canHire = state.coins >= hireCost && state.minerCount < maxMiners;
   
-  const upgradeCost = Math.floor((currentTier.upgradeCost || 0) * costReductionMultiplier);
+  const upgradeCost = Math.floor((currentTier.upgradeCost || 0) * upgradeCostMultiplier * costReductionMultiplier);
   const canUpgrade = nextTier && state.coins >= upgradeCost;
 
   const speedSkillLevel = state.minerSkills?.['speed_boost'] || 0;
   const skillSpeedBoost = speedSkillLevel * 5;
   const totalSpeedBoost = houseSpeedBoost + skillSpeedBoost;
 
-  const baseDigsPerMinute = state.minerCount * (currentTier.digsPerMinute || 1);
+  const effectiveSingleMinerDigsPerMinute = getEffectiveMinerDigsPerMinute(state.minerLevel, currentTier.digsPerMinute || 1);
+  const baseDigsPerMinute = state.minerCount * effectiveSingleMinerDigsPerMinute;
   const digsPerMinute = baseDigsPerMinute * (1 + totalSpeedBoost / 100);
 
   const handleHire = () => {
@@ -133,7 +136,7 @@ export default function Miners({ state, setState }: MinersProps) {
           <div className="bg-slate-50 rounded-2xl p-4 border-2 border-slate-100">
             <div className="text-sm font-bold text-slate-400 mb-1">矿工等级</div>
             <div className="text-2xl font-black text-sky-600">{currentTier.name}</div>
-            <div className="text-xs font-bold text-slate-400 mt-1">每名矿工 {currentTier.digsPerMinute} 次/分钟</div>
+            <div className="text-xs font-bold text-slate-400 mt-1">每名矿工 {Number(effectiveSingleMinerDigsPerMinute.toFixed(2))} 次/分钟</div>
           </div>
         </div>
         
@@ -156,6 +159,9 @@ export default function Miners({ state, setState }: MinersProps) {
               <p className="text-sm font-bold text-slate-500">
                 {state.minerCount >= maxMiners ? '已达到当前房屋矿工上限' : '增加1名矿工'}
               </p>
+              {hireCostMultiplier > 1 && (
+                <p className="text-[11px] font-black text-amber-600 mt-1">中后期雇佣系数 x{hireCostMultiplier.toFixed(2)}</p>
+              )}
             </div>
           </div>
           <button
@@ -182,6 +188,9 @@ export default function Miners({ state, setState }: MinersProps) {
               <p className="text-sm font-bold text-slate-500">
                 {nextTier ? `升级为 ${nextTier.name}` : '已满级'}
               </p>
+              {upgradeCostMultiplier > 1 && (
+                <p className="text-[11px] font-black text-amber-600 mt-1">中后期升级系数 x{upgradeCostMultiplier.toFixed(2)}</p>
+              )}
             </div>
           </div>
           {nextTier ? (
@@ -239,7 +248,7 @@ export default function Miners({ state, setState }: MinersProps) {
                   <div className="text-center flex-1">
                     <div className="text-xs font-bold text-slate-400 mb-1">原等级</div>
                     <div className="font-black text-slate-600">{showUpgradeAnim.oldTier.name}</div>
-                    <div className="text-xs font-bold text-slate-400 mt-1">{showUpgradeAnim.oldTier.digsPerMinute} 次/分</div>
+                    <div className="text-xs font-bold text-slate-400 mt-1">{Number(getEffectiveMinerDigsPerMinute(showUpgradeAnim.oldTier.level, showUpgradeAnim.oldTier.digsPerMinute).toFixed(2))} 次/分</div>
                   </div>
                   <div className="text-amber-400 px-2">
                     <ArrowUpCircle size={24} />
@@ -247,12 +256,12 @@ export default function Miners({ state, setState }: MinersProps) {
                   <div className="text-center flex-1">
                     <div className="text-xs font-bold text-amber-500 mb-1">新等级</div>
                     <div className="font-black text-amber-600">{showUpgradeAnim.newTier.name}</div>
-                    <div className="text-xs font-bold text-amber-500 mt-1">{showUpgradeAnim.newTier.digsPerMinute} 次/分</div>
+                    <div className="text-xs font-bold text-amber-500 mt-1">{Number(getEffectiveMinerDigsPerMinute(showUpgradeAnim.newTier.level, showUpgradeAnim.newTier.digsPerMinute).toFixed(2))} 次/分</div>
                   </div>
                 </div>
                 
                 <div className="text-sm font-black text-emerald-500 bg-emerald-50 py-2 rounded-xl border border-emerald-100">
-                  +{showUpgradeAnim.newTier.digsPerMinute - showUpgradeAnim.oldTier.digsPerMinute} 次/分钟 基础速度
+                  +{Number((getEffectiveMinerDigsPerMinute(showUpgradeAnim.newTier.level, showUpgradeAnim.newTier.digsPerMinute) - getEffectiveMinerDigsPerMinute(showUpgradeAnim.oldTier.level, showUpgradeAnim.oldTier.digsPerMinute)).toFixed(2))} 次/分钟 基础速度
                 </div>
               </div>
             </motion.div>

@@ -65,6 +65,8 @@ export interface Quest {
   title: string;
   description: string;
   type: QuestType;
+  chainId?: string;
+  chainStep?: number;
   target: number;
   rewardCoins?: number;
   rewardShovels?: number;

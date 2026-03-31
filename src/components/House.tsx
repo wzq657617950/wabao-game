@@ -1,7 +1,7 @@
 import React from 'react';
 import { GameState } from '../types';
-import { HOUSES } from '../gameLogic';
-import { Home as HomeIcon, ArrowUpCircle, CheckCircle2, BookOpen, Trophy, Package } from 'lucide-react';
+import { HOUSES, getHouseRequirementMultiplier } from '../gameLogic';
+import { Home as HomeIcon, ArrowUpCircle, CheckCircle2, BookOpen, Trophy, Package, LayoutGrid, X } from 'lucide-react';
 import { motion } from 'motion/react';
 import { soundManager } from '../sound';
 
@@ -29,14 +29,21 @@ const HOUSE_IMAGES: Record<number, string> = {
 };
 
 export default function House({ state, setState, setActiveTab }: HouseProps) {
+  const [showHouseGallery, setShowHouseGallery] = React.useState(false);
   const currentHouse = HOUSES[state.houseLevel] || HOUSES[0];
   const nextHouse = HOUSES[state.houseLevel + 1];
+  const nextHouseReqMultiplier = nextHouse ? getHouseRequirementMultiplier(nextHouse.id) : 1;
+  const adjustedNextHouseReq = nextHouse
+    ? Object.fromEntries(
+        Object.entries(nextHouse.req).map(([mat, amount]) => [mat, Math.ceil(amount * nextHouseReqMultiplier)])
+      )
+    : {};
 
   const handleUpgrade = () => {
     if (!nextHouse) return;
     
     // Check requirements
-    for (const [mat, amount] of Object.entries(nextHouse.req)) {
+    for (const [mat, amount] of Object.entries(adjustedNextHouseReq)) {
       if (mat === '黑宝石' || mat === '七彩宝石') {
         if ((state.inventory[mat as any] || 0) < amount) return;
       } else {
@@ -51,7 +58,7 @@ export default function House({ state, setState, setActiveTab }: HouseProps) {
       const newMaterials = { ...prev.materials };
       const newInventory = { ...prev.inventory };
       
-      for (const [mat, amount] of Object.entries(nextHouse.req)) {
+      for (const [mat, amount] of Object.entries(adjustedNextHouseReq)) {
         if (mat === '黑宝石' || mat === '七彩宝石') {
           newInventory[mat as any] -= amount;
         } else {
@@ -69,7 +76,7 @@ export default function House({ state, setState, setActiveTab }: HouseProps) {
     });
   };
 
-  const canUpgrade = nextHouse && Object.entries(nextHouse.req).every(([mat, amount]) => {
+  const canUpgrade = nextHouse && Object.entries(adjustedNextHouseReq).every(([mat, amount]) => {
     if (mat === '黑宝石' || mat === '七彩宝石') {
       return (state.inventory[mat as any] || 0) >= amount;
     }
@@ -82,10 +89,20 @@ export default function House({ state, setState, setActiveTab }: HouseProps) {
         <div className="p-3 bg-indigo-100 rounded-2xl border-4 border-white shadow-sm">
           <HomeIcon className="text-indigo-500" size={28} />
         </div>
-        <div>
+        <div className="flex-1">
           <h1 className="text-2xl font-black text-white drop-shadow-md tracking-tight">房屋系统</h1>
           <p className="text-sm text-white/80 font-bold">升级房屋获取更多特权</p>
         </div>
+        <button
+          onClick={() => {
+            soundManager.playClick();
+            setShowHouseGallery(true);
+          }}
+          className="bg-white/90 backdrop-blur-md rounded-2xl p-3 shadow-sm border-4 border-white flex flex-col items-center justify-center gap-1 transition-all hover:scale-105 active:scale-95"
+        >
+          <LayoutGrid className="text-indigo-500" size={20} />
+          <span className="font-black text-slate-700 text-xs">房屋图鉴</span>
+        </button>
       </div>
 
       {/* Museum, Achievements, and Backpack Shortcuts */}
@@ -187,10 +204,15 @@ export default function House({ state, setState, setActiveTab }: HouseProps) {
           <h2 className="text-lg font-black text-slate-700 mb-4 flex items-center gap-2">
             升级到: <span className="text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100">{nextHouse.name}</span>
           </h2>
+          {nextHouseReqMultiplier > 1 && (
+            <div className="mb-3 text-xs font-black text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-3 py-2">
+              中后期建造难度系数：x{nextHouseReqMultiplier.toFixed(2)}
+            </div>
+          )}
           
           <div className="space-y-3 mb-6">
             <h3 className="text-sm font-bold text-slate-500">所需材料:</h3>
-            {Object.entries(nextHouse.req).map(([mat, amount]) => {
+            {Object.entries(adjustedNextHouseReq).map(([mat, amount]) => {
               const isGem = mat === '黑宝石' || mat === '七彩宝石';
               const currentAmount = isGem ? (state.inventory[mat as any] || 0) : (state.materials[mat as any] || 0);
               const isMet = currentAmount >= amount;
@@ -229,6 +251,59 @@ export default function House({ state, setState, setActiveTab }: HouseProps) {
           <div className="text-6xl mb-4 drop-shadow-md">👑</div>
           <h2 className="text-2xl font-black text-amber-500 mb-2">已达到最高等级</h2>
           <p className="text-slate-500 font-bold">你的房屋无比辉煌！</p>
+        </div>
+      )}
+
+      {showHouseGallery && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm p-4 flex items-center justify-center">
+          <motion.div
+            initial={{ opacity: 0, y: 16, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="bg-white rounded-3xl border-4 border-white shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden"
+          >
+            <div className="flex items-center justify-between p-5 border-b-2 border-slate-100">
+              <h2 className="text-xl font-black text-slate-800">房屋等级展示</h2>
+              <button
+                onClick={() => {
+                  soundManager.playClick();
+                  setShowHouseGallery(false);
+                }}
+                className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto max-h-[70vh] space-y-3">
+              {HOUSES.map((house) => {
+                const isCurrent = house.id === state.houseLevel;
+                const isUnlocked = house.id <= state.houseLevel;
+                return (
+                  <div
+                    key={house.id}
+                    className={`rounded-2xl border-2 p-4 ${isCurrent ? 'border-indigo-400 bg-indigo-50' : isUnlocked ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">{HOUSE_IMAGES[house.id] || '🏠'}</span>
+                        <div className="font-black text-slate-800">Lv.{house.id} {house.name}</div>
+                      </div>
+                      <span className={`text-xs font-black px-2 py-1 rounded-lg ${isCurrent ? 'bg-indigo-200 text-indigo-700' : isUnlocked ? 'bg-emerald-200 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>
+                        {isCurrent ? '当前' : isUnlocked ? '已解锁' : '未解锁'}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-bold text-slate-600">
+                      <div className="bg-white rounded-xl px-2 py-1 border border-slate-200">容量 {house.capacity}</div>
+                      <div className="bg-white rounded-xl px-2 py-1 border border-slate-200">暴击 +{house.critRate * 100}%</div>
+                      <div className="bg-white rounded-xl px-2 py-1 border border-slate-200">金币 x{house.coinBoost}</div>
+                      <div className="bg-white rounded-xl px-2 py-1 border border-slate-200">铲子 {house.shovelsPerHour}/h</div>
+                      <div className="bg-white rounded-xl px-2 py-1 border border-slate-200">矿工 {house.maxMiners} 名</div>
+                      <div className="bg-white rounded-xl px-2 py-1 border border-slate-200">效率 +{house.minerSpeedBoost}%</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
         </div>
       )}
     </div>
